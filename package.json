@@ -1,0 +1,36 @@
+{
+  "name": "st7735r_tft",
+  "description": "st7735r tft lcd driver package",
+  "description_zh": "st7735r tft lcd 液晶屏驅動软件包",  
+  "enable": "PKG_USING_ST7735R_TFT", 
+  "keywords": [
+    "st7735r_tft",
+    "st7735r",
+    "tft"
+  ],
+  "category": "peripherals",
+  "author": {
+    "name": "LeeChunHei",
+    "email": "lch19980829@gmail.com",
+    "github": "LeeChunHei"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/LeeChunHei/st7735r_tft_rtt",
+  "icon": "unknown",
+  "homepage": "unknown",
+  "doc": "unknown",
+  "site": [
+    {
+      "version": "v1.0.0",
+      "URL": "https://st7735r_tft-1.0.0.zip",
+      "filename": "st7735r_tft-1.0.0.zip",
+      "VER_SHA": "fill in the git version SHA value"
+    },
+    {
+      "version": "latest",
+      "URL": "https://github.com/LeeChunHei/st7735r_tft_rtt.git",
+      "filename": "Null for git package",
+      "VER_SHA": "main"
+    }
+  ]
+}
