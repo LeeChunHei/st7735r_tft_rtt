@@ -22,8 +22,8 @@
   "site": [
     {
       "version": "v1.0.0",
-      "URL": "https://st7735r_tft-1.0.0.zip",
-      "filename": "st7735r_tft-1.0.0.zip",
+      "URL": "https://github.com/LeeChunHei/st7735r_tft_rtt/archive/1.0.0.zip",
+      "filename": "st7735r_tft_rtt-1.0.0.zip",
       "VER_SHA": "fill in the git version SHA value"
     },
     {

@@ -25,17 +25,17 @@ RT-Thread online packages
     peripheral libraries and drivers --->
         [*] st7735r tft lcd driver package --->
             [*] Setup st7735r tft in menuconfig --->
-                 spi0   SPI bus connected to the tft lcd
-                        GPIO port number for the chip select pin
-                        GPIO pin number for the chip select pin
-                        GPIO port number for the backlight pin
-                        GPIO pin number for the backlight pin
-                        GPIO port number for the dc pin
-                        GPIO pin number for the dc pin
-                        GPIO port number for the reset pin
-                        GPIO pin number for the reset pin
-                 128    Width of the tft lcd
-                 160    Height of the tft lcd
+                (spi0)  SPI bus connected to the tft lcd
+                ()      GPIO port number for the chip select pin
+                ()      GPIO pin number for the chip select pin
+                ()      GPIO port number for the backlight pin
+                ()      GPIO pin number for the backlight pin
+                ()      GPIO port number for the dc pin
+                ()      GPIO pin number for the dc pin
+                ()      GPIO port number for the reset pin
+                ()      GPIO pin number for the reset pin
+                (128)   Width of the tft lcd
+                (160)   Height of the tft lcd
 ```
 
 The detailed description of the package options is as follows:
@@ -87,14 +87,14 @@ int main(void)
             .y = y,
             .width = 120,
             .height = 1,
-        }
+        };
         rt_device_control(lcd, RT_ST7735R_SET_RECT, &rect);
         /* Fill grayscale pxiels */
         rt_uint8_t pixels[120];
         rt_memset(pixels, y, 120);
         rt_device_write(lcd, RT_ST7735R_WRITE_GRAYSCALE_PIXEL, pixels, 120);
     }
-    
+
     while (1)
     {
         rt_thread_mdelay(100);
