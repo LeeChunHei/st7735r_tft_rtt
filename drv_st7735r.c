@@ -239,7 +239,7 @@ void st7735r_fill_color(rt_st7735r_t dev, rt_uint16_t color)
 	}
 }
 
-void st7735r_show_grayscale_pixel(rt_st7735r_t dev, rt_uint8_t* pixel, rt_size_t length)
+void st7735r_show_grayscale_pixel(rt_st7735r_t dev, const rt_uint8_t *pixel, rt_size_t length)
 {
 	st7735r_send(dev, RT_FALSE, ST7735R_RAMWR);
 	for (rt_uint32_t i = 0; i < length; ++i)
@@ -251,7 +251,7 @@ void st7735r_show_grayscale_pixel(rt_st7735r_t dev, rt_uint8_t* pixel, rt_size_t
 	}
 }
 
-void st7735r_show_color_pixel(rt_st7735r_t dev, rt_uint16_t* pixel, rt_size_t length)
+void st7735r_show_color_pixel(rt_st7735r_t dev, const rt_uint16_t *pixel, rt_size_t length)
 {
 	st7735r_send(dev, RT_FALSE, ST7735R_RAMWR);
 	for (rt_uint32_t i = 0; i < length; ++i)
@@ -274,7 +274,9 @@ static rt_err_t st7735r_init(rt_device_t dev)
 	rt_pin_write(st7735r_dev->res_pin, PIN_LOW);
 	rt_thread_mdelay(100);
 	rt_pin_write(st7735r_dev->res_pin, PIN_HIGH);
-	rt_pin_write(st7735r_dev->bl_pin, PIN_LOW);
+#if !defined(PKG_ST7735R_ADJ_BL)
+		rt_pin_write(st7735r_dev->bl_pin, PIN_LOW);
+#endif
 	rt_pin_write(st7735r_dev->dc_pin, PIN_HIGH);
 
     st7735r_send(st7735r_dev, RT_FALSE, ST7735R_SWRESET);
@@ -301,18 +303,19 @@ static rt_err_t st7735r_init(rt_device_t dev)
 
 	st7735r_send(st7735r_dev, RT_FALSE, ST7735R_DISPON);
 	rt_thread_mdelay(10);
+	return RT_EOK;
 }
 
 static rt_err_t st7735r_open(rt_device_t dev, rt_uint16_t oflag)
 {
-    st7735r_clear(dev, 0x0);
-#ifdef PKG_ST7735R_ADJ_BL
 	rt_st7735r_t lcd = (rt_st7735r_t)dev;
+    st7735r_clear(lcd, 0x0);
+#ifdef PKG_ST7735R_ADJ_BL
 	rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
 	rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * PKG_ST7735R_BL_DEFAULT_INTENSITY / 100);
     rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
 #else
-	rt_pin_write(((rt_st7735r_t)dev)->bl_pin, PIN_HIGH);
+	rt_pin_write(lcd->bl_pin, PIN_HIGH);
 #endif
 	return RT_EOK;
 }
@@ -321,14 +324,15 @@ static rt_err_t st7735r_close(rt_device_t dev)
 {
 	if (dev->ref_count == 0)
 	{
-    	st7735r_clear(dev, 0x0);
-#ifdef PKG_ST7735R_ADJ_BL
 		rt_st7735r_t lcd = (rt_st7735r_t)dev;
+    	st7735r_clear(lcd, 0x0);
+#ifdef PKG_ST7735R_ADJ_BL
 		rt_pwm_disable(lcd->bl_pwm, lcd->bl_channel);
 #else
-		rt_pin_write(((rt_st7735r_t)dev)->bl_pin, PIN_LOW);
+		rt_pin_write(lcd->bl_pin, PIN_LOW);
 #endif
 	}
+	return RT_EOK;
 }
 
 static rt_size_t st7735r_read(rt_device_t dev, rt_off_t pos, void *buffer, rt_size_t size)
@@ -344,12 +348,12 @@ static rt_size_t st7735r_write(rt_device_t _dev, rt_off_t pos, const void *buffe
 	{
 	case RT_ST7735R_WRITE_COLOR_PIXEL:
 	{
-		st7735r_show_color_pixel(dev, buffer, size);
+		st7735r_show_color_pixel(dev, (const rt_uint16_t *)buffer, size);
 		return size;
 	}
 	case RT_ST7735R_WRITE_GRAYSCALE_PIXEL:
 	{
-		st7735r_show_grayscale_pixel(dev, buffer, size);
+		st7735r_show_grayscale_pixel(dev, (const rt_uint8_t *)buffer, size);
 		return size;
 	}
 	default:
@@ -359,26 +363,29 @@ static rt_size_t st7735r_write(rt_device_t _dev, rt_off_t pos, const void *buffe
 
 static rt_err_t st7735r_control(rt_device_t dev, int cmd, void *args)
 {
+	rt_st7735r_t lcd = (rt_st7735r_t)dev;
 	switch (cmd)
 	{
 	case RT_ST7735R_SET_RECT:
 	{
 		rt_st7735r_rect_t rect = (rt_st7735r_rect_t)args;
-		st7735r_set_active_rect(dev, rect->x, rect->y, rect->width, rect->height);
+		st7735r_set_active_rect(lcd, rect->x, rect->y, rect->width, rect->height);
 		return RT_EOK;
 	}
 	case RT_ST7735R_SET_BL:
 	{
-		rt_uint8_t *bl = (rt_uint8_t *)args;
+		rt_uint8_t bl = *((rt_uint8_t *)args);
 #ifdef PKG_ST7735R_ADJ_BL
-		LOG_E(LOG_TAG" %d is wrong backlight value", bl);
-		return -RT_ERROR;
-		rt_st7735r_t lcd = (rt_st7735r_t)dev;
+		if (bl > 100)
+		{
+			LOG_E(LOG_TAG" %d is wrong backlight value", bl);
+			return -RT_ERROR;
+		}
 		rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
 		rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * bl / 100);
 		rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
 #else
-		rt_pin_write(((rt_st7735r_t)dev)->bl_pin, bl != 0);
+		rt_pin_write(lcd->bl_pin, bl != 0);
 #endif
 		return RT_EOK;
 	}
@@ -498,9 +505,9 @@ static struct rt_device_ops st7735r_dev_ops =
 	if (dev_obj)
 	{
 		rt_memset(dev_obj, 0x0, sizeof(struct rt_st7735r));
-		dev_obj->spi = rt_device_find(dev_name);
+		dev_obj->spi = (struct rt_spi_device *)rt_device_find(dev_name);
 #ifdef PKG_ST7735R_ADJ_BL
-		dev_obj->bl_pwm = rt_device_find(bl_pwm_name);
+		dev_obj->bl_pwm = (struct rt_device_pwm *)rt_device_find(bl_pwm_name);
 		dev_obj->bl_channel = bl_pwm_channel;
 #else
 		dev_obj->bl_pin = bl_pin;
@@ -542,7 +549,11 @@ static struct rt_device_ops st7735r_dev_ops =
 #ifdef PKG_ST7735R_USING_KCONFIG
 static int st7735r_hw_init(void)
 {
+#ifdef PKG_ST7735R_ADJ_BL
+	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL_PWM, PKG_ST7735R_BL_PWM_CHANNEL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT);
+#else
 	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT);
+#endif
 	if (graphics_lcd == RT_NULL)
 	{
 		return -RT_ERROR;

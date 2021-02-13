@@ -53,7 +53,7 @@ if PKG_USING_ST7735R_TFT
         if PKG_ST7735R_ADJ_BL
             config PKG_ST7735R_BL_PWM
                 string "Backlight pwm name"
-            config PKG_ST7735R_PL_PWM_CHANNEL
+            config PKG_ST7735R_BL_PWM_CHANNEL
                 int "Backlight pwm channel"
             config PKG_ST7735R_BL_PWM_FREQ
                 int "Backlight frequency (Hz)"
@@ -62,6 +62,7 @@ if PKG_USING_ST7735R_TFT
                 int "Backlight default intensity"
                 range 0 100
                 default 50
+        endif
 
         config PKG_ST7735R_BL_GPIO
             int "GPIO port number for the backlight pin"
