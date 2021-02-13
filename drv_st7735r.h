@@ -30,6 +30,7 @@
 #include "drv_gpio.h"
 
 #define RT_ST7735R_SET_RECT     0x30
+#define RT_ST7735R_SET_BL       0x31
 
 struct rt_st7735r
 {
@@ -37,13 +38,14 @@ struct rt_st7735r
     struct rt_spi_device *spi;
     rt_base_t res_pin;
     rt_base_t dc_pin;
+#ifdef PKG_ST7735R_ADJ_BL
+    struct rt_device_pwm *bl_pwm;
+    rt_uint8_t bl_channel;
+#else
     rt_base_t bl_pin;
+#endif
     rt_uint8_t width;
     rt_uint8_t height;
-#ifdef PKG_ST7735R_USING_BL
-    rt_thread_t bl_thread;
-    rt_uint8_t bl;  /* from 0 to 100 */
-#endif
 };
 typedef struct rt_st7735r *rt_st7735r_t;
 
@@ -64,7 +66,11 @@ void st7735r_clear(rt_st7735r_t dev, rt_uint16_t color);
 void st7735r_fill_color(rt_st7735r_t dev, rt_uint16_t color);
 void st7735r_show_grayscale_pixel(rt_st7735r_t dev, rt_uint8_t* pixel, rt_size_t length);
 void st7735r_show_color_pixel(rt_st7735r_t dev, rt_uint16_t* pixel, rt_size_t length);
-rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height);
+#ifdef PKG_ST7735R_ADJ_BL
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height);
+#else
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height);
+#endif
 
 #endif
 #endif

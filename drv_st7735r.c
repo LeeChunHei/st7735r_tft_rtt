@@ -33,7 +33,9 @@
 
 #ifdef PKG_ST7735R_USING_KCONFIG
 	#define PKG_ST7735R_CS      GET_PIN(PKG_ST7735R_CS_GPIO, PKG_ST7735R_CS_PIN)
-	#define PKG_ST7735R_BL      GET_PIN(PKG_ST7735R_BL_GPIO, PKG_ST7735R_BL_PIN)
+	#if !defined(PKG_ST7735R_ADJ_BL)
+		#define PKG_ST7735R_BL      GET_PIN(PKG_ST7735R_BL_GPIO, PKG_ST7735R_BL_PIN)
+	#endif
 	#define PKG_ST7735R_DC      GET_PIN(PKG_ST7735R_DC_GPIO, PKG_ST7735R_DC_PIN)
 	#define PKG_ST7735R_RES     GET_PIN(PKG_ST7735R_RES_GPIO, PKG_ST7735R_RES_PIN)
 	#define PKG_ST7735R_CLEAR_SEND_NUMBER 5760
@@ -79,17 +81,6 @@ rt_inline rt_err_t st7735r_send(rt_st7735r_t dev, rt_bool_t is_data, rt_uint8_t 
         return RT_EOK;
     }
 }
-
-// static void st7735r_bl_task(rt_st7735r_t dev)
-// {
-// 	while (1)
-// 	{
-// 		rt_pin_write(dev->bl_pin, PIN_HIGH);
-// 		rt_thread_delay(dev->bl);
-// 		rt_pin_write(dev->bl_pin, PIN_LOW);
-// 		rt_thread_delay(100 - dev->bl);
-// 	}
-// }
 
 static void st7735r_init_ori(rt_st7735r_t dev, rt_uint8_t orientation)
 {
@@ -315,13 +306,13 @@ static rt_err_t st7735r_init(rt_device_t dev)
 static rt_err_t st7735r_open(rt_device_t dev, rt_uint16_t oflag)
 {
     st7735r_clear(dev, 0x0);
+#ifdef PKG_ST7735R_ADJ_BL
+	rt_st7735r_t lcd = (rt_st7735r_t)dev;
+	rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
+	rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * PKG_ST7735R_BL_DEFAULT_INTENSITY / 100);
+    rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
+#else
 	rt_pin_write(((rt_st7735r_t)dev)->bl_pin, PIN_HIGH);
-#ifdef PKG_ST7735R_USING_BL
-	// ((rt_st7735r_t)dev)->bl = 50;
-	// char thread_name[RT_NAME_MAX];
-	// rt_sprintf(thread_name, "%s_bl", dev->parent.name);
-	// ((rt_st7735r_t)dev)->bl_thread = rt_thread_create(dev->parent.name, st7735r_bl_task, dev, 200, RT_THREAD_PRIORITY_MAX - 1, 100);
-	// rt_thread_startup(((rt_st7735r_t)dev)->bl_thread);
 #endif
 	return RT_EOK;
 }
@@ -331,9 +322,11 @@ static rt_err_t st7735r_close(rt_device_t dev)
 	if (dev->ref_count == 0)
 	{
     	st7735r_clear(dev, 0x0);
+#ifdef PKG_ST7735R_ADJ_BL
+		rt_st7735r_t lcd = (rt_st7735r_t)dev;
+		rt_pwm_disable(lcd->bl_pwm, lcd->bl_channel);
+#else
 		rt_pin_write(((rt_st7735r_t)dev)->bl_pin, PIN_LOW);
-#ifdef PKG_ST7735R_USING_BL
-		// rt_thread_delete(((rt_st7735r_t)dev)->bl_thread);
 #endif
 	}
 }
@@ -372,6 +365,21 @@ static rt_err_t st7735r_control(rt_device_t dev, int cmd, void *args)
 	{
 		rt_st7735r_rect_t rect = (rt_st7735r_rect_t)args;
 		st7735r_set_active_rect(dev, rect->x, rect->y, rect->width, rect->height);
+		return RT_EOK;
+	}
+	case RT_ST7735R_SET_BL:
+	{
+		rt_uint8_t *bl = (rt_uint8_t *)args;
+#ifdef PKG_ST7735R_ADJ_BL
+		LOG_E(LOG_TAG" %d is wrong backlight value", bl);
+		return -RT_ERROR;
+		rt_st7735r_t lcd = (rt_st7735r_t)dev;
+		rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
+		rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * bl / 100);
+		rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
+#else
+		rt_pin_write(((rt_st7735r_t)dev)->bl_pin, bl != 0);
+#endif
 		return RT_EOK;
 	}
 	default:
@@ -462,7 +470,11 @@ static struct rt_device_ops st7735r_dev_ops =
     .control = st7735r_control,
 #endif
 
-rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height)
+#ifdef PKG_ST7735R_ADJ_BL
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height)
+#else
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height)
+#endif
 {
 	rt_uint8_t dev_num = 0;
 	char dev_name[RT_NAME_MAX];
@@ -476,7 +488,9 @@ rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t r
 	} while (rt_device_find(dev_name));
 	
 	rt_hw_spi_device_attach(spi_bus_name, dev_name, cs_pin);
+#if !defined(PKG_ST7735R_ADJ_BL)
     rt_pin_mode(bl_pin, PIN_MODE_OUTPUT);
+#endif
     rt_pin_mode(dc_pin, PIN_MODE_OUTPUT);
     rt_pin_mode(res_pin, PIN_MODE_OUTPUT);
 
@@ -485,13 +499,18 @@ rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t r
 	{
 		rt_memset(dev_obj, 0x0, sizeof(struct rt_st7735r));
 		dev_obj->spi = rt_device_find(dev_name);
+#ifdef PKG_ST7735R_ADJ_BL
+		dev_obj->bl_pwm = rt_device_find(bl_pwm_name);
+		dev_obj->bl_channel = bl_pwm_channel;
+#else
 		dev_obj->bl_pin = bl_pin;
+#endif
 		dev_obj->res_pin = res_pin;
 		dev_obj->dc_pin = dc_pin;
 		dev_obj->width = width;
 		dev_obj->height = height;
 #ifdef RT_USING_DEVICE_OPS
-		dev_obj->parent->ops = &st7735r_dev_ops;
+		dev_obj->parent.ops = &st7735r_dev_ops;
 #else
 		dev_obj->parent.type = RT_Device_Class_Graphic;
 		dev_obj->parent.init = st7735r_init;
