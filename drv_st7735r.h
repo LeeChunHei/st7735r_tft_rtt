@@ -35,12 +35,14 @@
 struct rt_st7735r
 {
     struct rt_device parent;
+    struct rt_device_graphic_info lcd_info;
     struct rt_spi_device *spi;
     rt_base_t res_pin;
     rt_base_t dc_pin;
 #ifdef PKG_ST7735R_ADJ_BL
     struct rt_device_pwm *bl_pwm;
     rt_uint8_t bl_channel;
+    rt_uint8_t bl_value;
 #else
     rt_base_t bl_pin;
 #endif

@@ -261,6 +261,24 @@ void st7735r_show_color_pixel(rt_st7735r_t dev, const rt_uint16_t *pixel, rt_siz
 	}
 }
 
+void st7735r_set_bl(rt_st7735r_t dev, rt_bool_t on)
+{
+#ifdef PKG_ST7735R_ADJ_BL
+	if (on)
+	{
+		rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
+		rt_pwm_set(dev->bl_pwm, dev->bl_channel, period, period * dev->bl_value / 100);
+		rt_pwm_enable(dev->bl_pwm, dev->bl_channel);
+	}
+	else
+	{
+		rt_pwm_disable(dev->bl_pwm, dev->bl_channel);
+	}
+#else
+	rt_pin_write(dev->bl_pin, on);
+#endif
+}
+
 static rt_err_t st7735r_init(rt_device_t dev)
 {
 	rt_st7735r_t st7735r_dev = (rt_st7735r_t)dev;
@@ -310,13 +328,7 @@ static rt_err_t st7735r_open(rt_device_t dev, rt_uint16_t oflag)
 {
 	rt_st7735r_t lcd = (rt_st7735r_t)dev;
     st7735r_clear(lcd, 0x0);
-#ifdef PKG_ST7735R_ADJ_BL
-	rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
-	rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * PKG_ST7735R_BL_DEFAULT_INTENSITY / 100);
-    rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
-#else
-	rt_pin_write(lcd->bl_pin, PIN_HIGH);
-#endif
+	st7735r_set_bl(lcd, RT_TRUE);
 	return RT_EOK;
 }
 
@@ -375,20 +387,39 @@ static rt_err_t st7735r_control(rt_device_t dev, int cmd, void *args)
 	case RT_ST7735R_SET_BL:
 	{
 		rt_uint8_t bl = *((rt_uint8_t *)args);
-#ifdef PKG_ST7735R_ADJ_BL
 		if (bl > 100)
 		{
 			LOG_E(LOG_TAG" %d is wrong backlight value", bl);
 			return -RT_ERROR;
 		}
-		rt_size_t period = 1000000000 / PKG_ST7735R_BL_PWM_FREQ;
-		rt_pwm_set(lcd->bl_pwm, lcd->bl_channel, period, period * bl / 100);
-		rt_pwm_enable(lcd->bl_pwm, lcd->bl_channel);
-#else
-		rt_pin_write(lcd->bl_pin, bl != 0);
+#ifdef PKG_ST7735R_ADJ_BL
+		dev->bl_value = bl;
 #endif
+		st7735r_set_bl(lcd, bl != 0);
 		return RT_EOK;
 	}
+	case RTGRAPHIC_CTRL_POWERON:
+	{
+		st7735r_clear(lcd, 0x0);
+		st7735r_set_bl(lcd, RT_TRUE);
+		return RT_EOK;
+	}
+    case RTGRAPHIC_CTRL_POWEROFF:
+	{
+		st7735r_set_bl(lcd, RT_FALSE);
+		return RT_EOK;
+	}
+	case RTGRAPHIC_CTRL_SET_MODE:
+    case RTGRAPHIC_CTRL_GET_EXT:
+	case RTGRAPHIC_CTRL_RECT_UPDATE:
+		return RT_EOK;
+    case RTGRAPHIC_CTRL_GET_INFO:
+    {
+        struct rt_device_graphic_info *info = (struct rt_device_graphic_info *)args;
+        RT_ASSERT(info != RT_NULL);
+		rt_memcpy(info, &(lcd->lcd_info), sizeof(struct rt_device_graphic_info));
+		return RT_EOK;
+    }
 	default:
 		return -RT_ERROR;
 	}
@@ -454,7 +485,16 @@ static void st7735r_draw_vline(const char *pixel, int x, int y1, int y2)
 
 static void st7735r_blit_line(const char *pixel, int x, int y, rt_size_t size)
 {
-//TODO: finding doc for how to complete this function
+    const rt_uint16_t *ptr = (const rt_uint16_t *)pixel;
+	st7735r_set_active_rect(graphics_lcd, x, y, size, 1);
+	st7735r_send(graphics_lcd, RT_FALSE, ST7735R_RAMWR);
+	for (rt_uint32_t i = 0; i < size; ++i)
+	{
+		st7735r_send(graphics_lcd, RT_TRUE, *(ptr) >> 8);
+		st7735r_send(graphics_lcd, RT_TRUE, *(ptr));
+		++ptr;
+	}
+    return;
 }
 
 static struct rt_device_graphic_ops st7735r_graphic_ops =
@@ -505,10 +545,16 @@ static struct rt_device_ops st7735r_dev_ops =
 	if (dev_obj)
 	{
 		rt_memset(dev_obj, 0x0, sizeof(struct rt_st7735r));
+		dev_obj->lcd_info.height = height;
+		dev_obj->lcd_info.width = width;
+		dev_obj->lcd_info.bits_per_pixel = 16;
+		dev_obj->lcd_info.pixel_format = RTGRAPHIC_PIXEL_FORMAT_RGB565;
+		dev_obj->lcd_info.framebuffer = RT_NULL;
 		dev_obj->spi = (struct rt_spi_device *)rt_device_find(dev_name);
 #ifdef PKG_ST7735R_ADJ_BL
 		dev_obj->bl_pwm = (struct rt_device_pwm *)rt_device_find(bl_pwm_name);
 		dev_obj->bl_channel = bl_pwm_channel;
+		dev_obj->bl_value = PKG_ST7735R_BL_DEFAULT_INTENSITY
 #else
 		dev_obj->bl_pin = bl_pin;
 #endif
