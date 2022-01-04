@@ -70,9 +70,9 @@ void st7735r_fill_color(rt_st7735r_t dev, rt_uint16_t color);
 void st7735r_show_grayscale_pixel(rt_st7735r_t dev, const rt_uint8_t* pixel, rt_size_t length);
 void st7735r_show_color_pixel(rt_st7735r_t dev, const rt_uint16_t* pixel, rt_size_t length);
 #ifdef PKG_ST7735R_ADJ_BL
-    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height);
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height, uint8_t ori);
 #else
-    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height);
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height, uint8_t ori);
 #endif
 
 #endif
