@@ -48,6 +48,7 @@ struct rt_st7735r
 #endif
     rt_uint8_t width;
     rt_uint8_t height;
+    rt_uint8_t ori;
 };
 typedef struct rt_st7735r *rt_st7735r_t;
 

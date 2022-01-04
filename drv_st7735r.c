@@ -303,7 +303,7 @@ static rt_err_t st7735r_init(rt_device_t dev)
     st7735r_send(st7735r_dev, RT_FALSE, ST7735R_SLPOUT);
 	rt_thread_mdelay(120);
 
-    st7735r_init_ori(st7735r_dev, 2);
+    st7735r_init_ori(st7735r_dev, st7735r_dev->ori);
 
 	// 16-bit
 	st7735r_send(st7735r_dev, RT_FALSE, ST7735R_COLMOD);
@@ -518,9 +518,9 @@ static struct rt_device_ops st7735r_dev_ops =
 #endif
 
 #ifdef PKG_ST7735R_ADJ_BL
-    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height)
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, const char *bl_pwm_name, rt_uint8_t bl_pwm_channel, uint8_t width, uint8_t height, uint8_t ori)
 #else
-    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height)
+    rt_st7735r_t st7735r_user_init(char *spi_bus_name, rt_base_t cs_pin, rt_base_t res_pin, rt_base_t dc_pin, rt_base_t bl_pin, uint8_t width, uint8_t height, uint8_t ori)
 #endif
 {
 	rt_uint8_t dev_num = 0;
@@ -562,6 +562,7 @@ static struct rt_device_ops st7735r_dev_ops =
 		dev_obj->dc_pin = dc_pin;
 		dev_obj->width = width;
 		dev_obj->height = height;
+		dev_obj->ori = ori;
 #ifdef RT_USING_DEVICE_OPS
 		dev_obj->parent.ops = &st7735r_dev_ops;
 #else
@@ -596,9 +597,9 @@ static struct rt_device_ops st7735r_dev_ops =
 static int st7735r_hw_init(void)
 {
 #ifdef PKG_ST7735R_ADJ_BL
-	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL_PWM, PKG_ST7735R_BL_PWM_CHANNEL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT);
+	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL_PWM, PKG_ST7735R_BL_PWM_CHANNEL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT, PKG_ST7735R_ORI);
 #else
-	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT);
+	graphics_lcd = st7735r_user_init(PKG_ST7735R_SPI_BUS, PKG_ST7735R_CS, PKG_ST7735R_RES, PKG_ST7735R_DC, PKG_ST7735R_BL, PKG_ST7735R_WIDTH, PKG_ST7735R_HEIGHT, PKG_ST7735R_ORI);
 #endif
 	if (graphics_lcd == RT_NULL)
 	{

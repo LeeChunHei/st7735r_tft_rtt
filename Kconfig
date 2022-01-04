@@ -98,6 +98,10 @@ if PKG_USING_ST7735R_TFT
         config PKG_ST7735R_HEIGHT
             int "Height of the tft lcd"
             default 160
+
+        config PKG_ST7735R_ORI
+            int "Orientation of the tft lcd"
+            default 2
     endif
 
 endif
