@@ -551,6 +551,12 @@ static struct rt_device_ops st7735r_dev_ops =
 		dev_obj->lcd_info.pixel_format = RTGRAPHIC_PIXEL_FORMAT_RGB565;
 		dev_obj->lcd_info.framebuffer = RT_NULL;
 		dev_obj->spi = (struct rt_spi_device *)rt_device_find(dev_name);
+		struct rt_spi_configuration spi_config;
+        spi_config.data_width = 8;
+        spi_config.mode = RT_SPI_MASTER | RT_SPI_MODE_0 | RT_SPI_MSB;
+        /* Max freq of ST7735R is 24MHz */
+        spi_config.max_hz = 24000000;
+        rt_spi_configure(dev_obj->spi, &spi_config);
 #ifdef PKG_ST7735R_ADJ_BL
 		dev_obj->bl_pwm = (struct rt_device_pwm *)rt_device_find(bl_pwm_name);
 		dev_obj->bl_channel = bl_pwm_channel;
